@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Main</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/sciter.css">
+    <script type="text/tiscript">
+        //include "scripts/test_mocks.tis";
+        include "scripts/notif.tis";
+        include "scripts/main.tis";
+        include "scripts/movable.tis";
+        include "scripts/timeline.tis";
+        include "scripts/tasks.tis";
+        include "scripts/filedrop.tis";
+        include "scripts/translate.tis";
+
+        var GENERIC_ERROR = translate_or_default("Error", "generic.error");
+        var ICON_ERROR = "error";
+
+        self.ready = function() {
+            filedrop();
+            translateTexts();
+            check_service_status();
+            check_system_scan_running();
+            $(#create_account).subscribe("click", function() {
+                view.connect_login();
+            });
+        }
+
+        function product_language_changed() {
+            reloadEvents();
+            translateTexts();
+            product_status_changed();
+        }
+
+        function on_service_status_changed(status) {
+            if (!status.success)
+                return;
+            if (status.running) {
+                product_status_changed();
+                reloadEvents();
+            } else {
+                if (status.overlay == "services_off") {
+                    show_service_down_page();
+                }
+                if (status.overlay == "update") {
+                    show_update_running_page();
+                }
+            }
+        }
+
+        function connect_user_changed(data) {
+            if (data.connect_success == false) {
+                show_connect_overlay();
+            }
+            else {
+                product_status_changed();
+                reloadEvents();
+            }
+        }
+        
+        function on_dsa_changed(data) {
+            if (data.state == false) {
+                show_dsa_page();
+            }
+            else {
+                product_status_changed();
+                reloadEvents();
+            }
+        }
+        
+        function on_submit_progress() {}
+        function quar_emptied() {}
+        function quar_file_deleted() {}
+        function on_launched() {}
+        function on_finished() {}
+        function on_error() {}
+        function exclusions_changed() {}
+    </script>
+</head>
+<body class="main-ui">
+    <header>
+        <div class="logo"></div>
+        <div class="name" ids="main.product_name">Antivirus Free Edition</div>
+        <div class="window-controls">
+            <select class="settings" id="settings">
+                <option value="events"     ids="main.option_events">Events</option>
+                <option value="quarantine" ids="main.option_quarantine">Quarantine</option>
+                <option value="exclusions" ids="main.option_exclusions">Exclusions</option>
+                <option value="settings"   ids="main.option_settings">Settings</option>
+                <option value="account"    ids="main.option_account">Account Info</option>
+                <option value="help"       ids="main.option_help">Help Support</option>
+            </select>
+            <button type="button" class="minimize"></button><!--
+         --><button type="button" class="close"></button>
+        </div>
+    </header>
+    <div class="main-ui-content">
+        <!-- timeline -->
+        <div class="snapshot">
+            <div class="status-img"></div>
+            <div class="status-container critical">
+                <img />
+                <div class="status-info">
+                    <div class="status-text">
+                        <div ids="main.status_device">Your device is</div>
+                        <div>Protected</div>
+                    </div>
+                    <div ids="main.status_activate_protection" class="status-activate">Click to activate protection bla</div>
+                    <button class="std-btn-w" ids="events.ondemand_title_system_scan" id="system_scan">System Scan</button>
+                </div>
+            </div>
+
+            <div class="timeline-container">
+                <div class="timeline-info" >
+                    <div class="icon"></div>
+                    <div ids="main.timeline_info">Drag and drop your files or folder here to start scanning fads fsd fadsfads</div>
+                </div>
+                <!-- tasks -->
+                <ul class="tasks">
+                    <li class="file-over">
+                        <img />
+                        <div ids="tasks.release_file">
+                            Release your files or folders to start scanning
+                        </div>
+                    </li>
+
+                    <li class="scanning show">
+                        <!-- <img /> -->
+                        <div class="img" ><img /></div>
+                        <div class="info">
+                            <div class="title">Scanning in progress (68%)</div>
+                            <div class="description"></div>
+                        </div>
+                    </li>
+                </ul>
+
+                <!-- events -->
+                <ul class="timeline">
+                    <li class="info onaccess">
+                        <img />
+                        <div class="bubble">
+                            <div class="info">
+                                <div class="title">No viruses were found</div>
+                                <div class="description"></div>
+                            </div>
+                            <div class="action"></div>
+                        </div>
+                    </li>
+
+                    <li class="critical avc">
+                        <img />
+                        <div class="bubble">
+                            <div class="info">
+                                <div class="title">0 viruses were found</div>
+                                <div class="description"></div>
+                            </div>
+                            <div class="action"><a>More details</a></div>
+                        </div>
+                    </li>
+
+                    <!-- <li class="ad">
+                        <img />
+                        <div class="bubble">
+                            <div class="info">
+                                <div class="title">Startup Optimizer</div>
+                                <div class="description">Upgrade to use this feature</div>
+                            </div>
+                            <div class="action"><button type="button" class="std-button">Upgrade</button></div>
+                        </div>
+                    </li> -->
+
+                    <li class="info update">
+                        <img />
+                        <div class="bubble">
+                            <div class="info">
+                                <div class="title">Updated</div>
+                                <div class="description">Last update: 4:20 PM Today</div>
+                            </div>
+                            <div class="action"></div>
+                        </div>
+                    </li>
+
+                    <li class="critical ondemand">
+                        <img />
+                        <div class="bubble">
+                            <div class="info">
+                                <div class="title">0 viruses were found</div>
+                                <div class="description"></div>
+                            </div>
+                            <div class="action"><a>More details</a></div>
+                        </div>
+                    </li>
+
+                    <li class="warning avc">
+                        <img />
+                        <div class="bubble">
+                            <div class="info">
+                                <div class="title">0 viruses were found</div>
+                                <div class="description"></div>
+                            </div>
+                            <div class="action"><a>More details</a></div>
+                        </div>
+                    </li>
+
+                    <li class="reboot onaccess">
+                        <img />
+                        <div class="bubble">
+                            <div class="info">
+                                <div class="title">0 viruses were found</div>
+                                <div class="description"></div>
+                            </div>
+                            <div class="action"><a>More details</a></div>
+                        </div>
+                    </li>
+                    <li class="view-more">
+                        View more
+                    </li>
+                </ul>
+                <div class="fade"></div>
+            </div>
+        </div>
+
+         <!-- activate -->
+        <div class="activate">
+            <div class="icon"></div>
+            <div class="title" ids="main.activate.title"></div>
+
+            <div class="description" ids="main.activate.description">
+                Before being protected, you must sign in or create an account if you don't have one
+            </div>
+
+            <button class="std-btn-w" ids="main.activate.create.account" id="create_account">Create Bitdefender account</button>
+        </div>
+
+        <!-- services down -->
+        <div class="services-down">
+            <div class="icon"><div class="fgr"></div></div>
+            <div class="title" ids="main.services.down.title">Services not responding</div>
+            <div class="description" ids="main.services.down.description">
+               The bitdefender services are currently not available.
+            </div>
+            <button class="sd-button" id="restart" ids="main.services.down.restart">Restart your PC</button>
+        </div>
+
+        <!-- services down during update -->
+        <div class="services-down update">
+            <div class="icon"><div class="fgr"></div></div>
+            <div class="title" ids="main.services.update.title">Update is in progress</div>
+            <div class="description" ids="main.services.update.description">Bitdefender Services are updateing</div>
+        </div>
+        
+        <!-- not dsa - this is just a sample page, not the final version -->
+        <div class="services-down dsa other-av">
+            <div class="icon"><div class="fgr"></div></div>
+            <div class="title">Your device is protected by another antivirus</div>
+            <button class="std-btn-w" id="activate_dsa">Enable Bitdefender protection</button>
+        </div>
+    </div>
+</body>
+</html>

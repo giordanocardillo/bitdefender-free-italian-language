@@ -1,0 +1,86 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title ids="block_page.title">Page blocked by Bitdefender</title>
+    <style>
+        body {
+            background-color:  #ebebeb;
+        }
+        .bd-main-container {
+            width: 540px;
+            margin: 15% auto 0 auto;
+        }
+
+        .bd-icon {
+            width: 87px;
+            height: 87px;
+			background-repeat: no-repeat;
+            background-image: url(images/block-icon.svg);
+            float: left;
+            margin-right: 30px;
+        }
+
+        .bd-info-container {
+            color: #e22d31;
+            font-family: Arial, sans-serif;
+            float: left;
+            width: 420px;
+        }
+
+        div.bd-title {
+            font-size: 22px;
+            font-weight: normal;
+            margin: 5px 0 10px 0;
+        }
+
+        .logo {
+            display:inline-block;
+            width: 135px;
+            height: 19px;
+            background-image: url(images/logo-red.svg);
+            background-repeat:no-repeat;
+        }
+
+        .bd-description {
+            font-size: 13px;
+            line-height: 18px;
+        }
+    </style>
+    <script type="text/javascript">
+        function proceedAnyway() {
+            var obj_ajax = null;
+			if (window.ActiveXObject) {
+				obj_ajax = new ActiveXObject(Microsoft.XMLHTTP);
+			}
+			else {
+				obj_ajax = new XMLHttpRequest();
+			}
+            if (obj_ajax) {
+                obj_ajax.onreadystatechange = function() {
+                    if (4 == obj_ajax.readyState) {
+                        window.location.reload();
+                    }
+                }       
+            }
+            sid=Math.random();
+			var domain = window.location.origin;
+            obj_ajax.open("POST", sid, true);
+            obj_ajax.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+			obj_ajax.setRequestHeader("bp_internal_request");
+			obj_ajax.setRequestHeader("bp_location", domain);
+            obj_ajax.send(0); 
+        }
+    </script>
+</head>
+<body>
+    <div class="bd-main-container">
+        <div class="bd-icon"></div>
+        <div class="bd-info-container">
+            <div class="bd-title"><div class="logo"></div>  <span ids="block_page.description">has blocked this page</span></div>
+            <div class="bd-description" ids="block_page.description_full">We have detected some malware on the page you contacted and our antivirus blocked it.</div>
+            <div class="bd-description"><a href="#" id="proceedAnyway" onclick="proceedAnyway(); return false;" ids="block_page.proceed_anyway">I understand the risks, take me there anyway</a></div>
+        </div>
+    </div>
+
+</body>
+</html>

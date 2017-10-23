@@ -1,0 +1,361 @@
+include "translate.tis"
+include "events_translations.tis"
+
+class EventsGrid:Behavior {
+    var tbody;
+    var _self;
+    var checked;
+    var pageSize = 10;
+    var beforeIndex = 0;// 0 is equivalent to not set
+    var enumerationPending = false;
+    var allEventsLoaded = false;
+
+    function attached() {
+        _self = this;
+        tbody = this.$(.tbody);
+
+        hide();
+        clearInfo();
+        addItems();
+
+        // load more on scroll
+        _self.subscribe("scroll", function(evt) {
+            if(_self.scroll(#bottom) <= 0 && !enumerationPending) {
+                addItems();
+            }
+        });
+    }
+
+    function hide() {
+        _self.style#display = "none";
+        $(#eventsEmpty).style#visibility = "collapse";
+        $(#emptyEvents).style#display = "block";
+    }
+
+    function show() {
+        _self.style#display = "block";
+        $(#eventsEmpty).style#visibility = "visible";
+        $(#emptyEvents).style#display = "none";
+    }
+
+    function refresh() {
+        clearInfo();
+        clearItems();
+        beforeIndex = 0;
+        addItems();
+        if(tbody.length < 1) {
+            hide();
+        }
+    }
+
+    function scrollToView(element) {
+        element.scrollToView(true, false);
+        _self.scrollTo(0, _self.scroll(#top), false);
+    }
+
+    function addItems() {
+        enumerationPending = true;
+        var events = view.events_get_all({"count": pageSize, "before": beforeIndex });
+        if (!events.success) {
+            return;
+        }
+        if (events.count.toInteger() > 0) {
+            show();
+            for(var item in events.events) {
+                insert_event(item, false);
+            }
+            var count = events.count.toInteger();
+            if (count > 0) {
+                beforeIndex = events.events[count - 1].index.toInteger();
+            }
+            enumerationPending = false;
+        }
+        else {
+            allEventsLoaded = true;
+        }
+    }
+
+    function create_event_tag(index, description, description_full, formatted_date)
+    {
+        return tbody.create({div, class: "tr", id: index, [
+            {td, [
+                    {div, class:"event-title", [description]},
+                    {div, class:"event-description", [description_full]}
+                ]},
+            {td, class:"event-date", [formatted_date]}
+        ]});
+    }
+
+    function set_info_pannel(title, formatted_date, formatted_time, description_full)
+    {
+        $(#eventTitle).text = title;
+        $(#eventDate).text = formatted_date;
+        $(#eventTime).text = formatted_time;
+        $(#eventDescription).text = description_full;
+    }
+
+    function get_formatted_date(time)
+    {
+        var date = new Date();
+        date.setTime(time * 1000);
+        return date.monthName() + " " + date.day;
+    }
+
+    function get_formatted_time(time)
+    {
+        var date = new Date();
+        date.setTime(time * 1000);
+        var dateStr ="";
+        if (date.hour < 10) {
+            dateStr += "0"
+        }
+        dateStr += date.hour + ":";
+        if (date.minute < 10) {
+            dateStr += "0";
+        }
+        dateStr += date.minute;
+        return dateStr;
+    }
+
+    function add_reboot_button(event)
+    {
+        if (!event.data.reboot) {
+            return;
+        }
+        var btn = $(#eventAction).$append(<button class="std-button" ids="events.reboot_button">{translate_or_default("Reboot", "events.reboot_button")}</button>);
+        btn.subscribe("click", function() {
+            var onUserIsSure = function() {
+                var result = view.events_reboot({"index" : event.index.toInteger()});
+                if (result.success) {
+                    var msg = translate_or_default("Rebooting...", "events.reboot_success_message");
+                    Popup.show_ok(GENERIC_INFO, msg, ICON_INFO);
+                } else {
+                    var msg = translate_or_default("Attempt to reboot failed", "events.reboot_error");
+                    Popup.show_ok(GENERIC_ERROR, msg, ICON_ERROR);
+                }
+            }
+            var msg = translate_or_default("Are you sure you want to reboot?", "events.reboot_are_you_sure");
+            Popup.show_yes_no(GENERIC_WARNING, msg, ICON_WARNING, onUserIsSure);
+        });
+    }
+
+    function add_exclude_button(event)
+    {
+        if (!event.data.exclude) {
+            return;
+        }
+        var btn = $(#eventAction).$append(<button class="std-button" ids="events.button_exclude">{translate_or_default("Exclude", "events.button_exclude")}</button>);
+        btn.subscribe("click", function() {
+            var result = view.events_add_event_to_exclusions({"index" : event.index.toInteger()});
+            if(result.success) {
+                $(.exclusions-grid).refresh();
+                this.remove();
+                var msg = translate_or_default("Item was excluded", "events.exclude_success_message");
+                Popup.show_ok(GENERIC_INFO, msg, ICON_INFO);
+            } else {
+                var msg  = translate_or_default("Item could not be excluded", "events.exclude_error");
+                Popup.show_ok(GENERIC_ERROR, msg, ICON_ERROR);
+            }
+        });
+    }
+
+    function add_details_button(event)
+    {
+        if (event.module != "ondemand") {
+            return;
+        }
+        var btn = $(#eventAction).$append(<button class="std-button" ids="events.button_details">{translate_or_default("Details", "events.button_details")}</button>);
+        btn.subscribe("click", function() {
+            var name = "file_scan"; // TODO
+            var launchArguments = {"event_index" : event.index};
+            view.create_child_window({"name" : name, "launchArguments" : launchArguments, "taskid" : event.data.taskid});
+        });
+    }
+
+    function add_retry_button(event)
+    {
+        if (event.module != "update") {
+            return;
+        }
+        var error_code = event.data.error.toInteger();
+        if (error_code == 0) {
+            return;
+        }
+        var btn = $(#eventAction).$append(<button class="std-button" ids="events.button_retry">{translate_or_default("Retry", "events.button_retry")}</button>);
+        btn.subscribe("click", function() {
+            var result = view.retry_update();
+            if (!result.success) {
+                var msg = translate_or_default("Unable to perform update. Please try again later.", "events.update_retry_button");
+                Popup.show_ok(GENERIC_ERROR, msg, ICON_ERROR);
+            }
+        });
+    }
+
+    function set_product_status_callback(response)
+    {
+        Popup.close();
+        if (response.success) {
+            var msg = translate_or_default("You are protected.", "events.activate_protection_success_message");
+            Popup.show_ok(GENERIC_INFO, msg, ICON_INFO);
+        } else {
+            var msg = translate_or_default("Failed to activate protection. Please retry.", "events.activate_protection_error");
+            Popup.show_ok(GENERIC_ERROR, msg, ICON_ERROR);
+        }
+    }
+
+    function add_enable_protection_button(event)
+    {
+        if (event.module != "product_status") {
+            return;
+        }
+        var btn = $(#eventAction).$append(<button class="std-button" ids="events.button_activate_protection">Activate Protection</button>);
+        btn.subscribe("click", function() {
+            view.set_product_status({enabled: true}, set_product_status_callback);
+            var msg = translate_or_default("Activating protection", "events.activate_protection_in_progress_message");
+            Popup.show_ok(GENERIC_INFO, msg, ICON_INFO);
+        });
+    }
+
+    function insert_event(event, prepend)
+    {
+        var translation = translate_event(event);
+        var formatted_date = get_formatted_date(event.time);
+        var event_tag = create_event_tag(event.index.toInteger(), translation.description, translation.description_full, formatted_date);
+
+        event_tag.selectEvent = function() {
+
+            if(checked) {
+                checked.@.removeClass("checked");
+            }
+            this.@.addClass("checked");
+            checked = this;
+
+            clearInfo();
+            var result = view.events_get_event({"index" : event.index});
+            if (!result.success) {
+                return;
+            }
+
+            var recent_event = result.event;
+            var formatted_date = get_formatted_date(recent_event.time);
+            var formatted_time = get_formatted_time(recent_event.time);
+            set_info_pannel(translation.title, formatted_date, formatted_time, translation.description_full);
+            add_reboot_button(recent_event);
+            add_exclude_button(recent_event);
+            add_details_button(recent_event);
+            add_retry_button(recent_event);
+            add_enable_protection_button(recent_event);
+            $(#deleteEvent).style#visibility = "visible";
+        }
+
+        if (prepend) {
+            tbody.prepend(event_tag);
+        } else {
+            tbody.append(event_tag);
+        }
+
+        event_tag.subscribe("click", event_tag.selectEvent);
+    }
+
+    function getEvent(id) {
+        return tbody.select("#"+id);
+    }
+
+    function removeItem(id) {
+        tbody.select("#"+id).remove();
+    }
+
+    function clearItems() {
+        tbody.clear();
+    }
+
+    function clearInfo() {
+        // view.msgbox(#information, "clear info!");
+        $(#eventTitle).text = "";
+        $(#eventDate).text = "";
+        $(#eventTime).text = "";
+        $(#eventDescription).text = "";
+        $(#eventAction).clear();
+        $(#deleteEvent).style#visibility = "hidden";
+    }
+}
+
+// notice that this discards the current state of the grid
+// (eg: if we scrolled utill the 20th events, we will lose the context and see only the first pageSize events)
+function reloadEvents() {
+    var eventsGrid = $(.events-grid);
+    eventsGrid.refresh();
+}
+
+// notifications
+function events_new_event(data) {
+    var index = data["id"];
+    var newEvent = view.events_get_event({"index":index });
+    var eventsGrid = $(.events-grid);
+    if(newEvent.success) {
+        eventsGrid.show();
+        eventsGrid.insert_event(newEvent.event, true);
+        eventsGrid.beforeIndex += 1;
+    }
+}
+
+function events_modified_event(index) {
+    reloadEvents();
+}
+
+function events_deleted_event(index) {
+    reloadEvents();
+}
+
+function events_deleted_all() {
+    reloadEvents();
+}
+
+function product_language_changed() {
+    translateTexts();
+    reloadEvents();
+}
+
+// actions
+$(#deleteEvent).subscribe("click", function() {
+    var onUserIsSure = function () {
+        var grid = $(.events-grid);
+        var selectedEvent = grid.$(.checked);
+        var result = view.events_hide_event({index:selectedEvent.id.toInteger()});
+
+        if(result.success) {
+            grid.removeItem(selectedEvent.id);
+            grid.clearInfo();
+
+            if(grid.tbody.length < 1) {
+                grid.hide();
+            }
+            var msg = translate_or_default("Event was deleted", "events.deleted_selected_success_message");
+            Popup.show_ok(GENERIC_INFO, msg, ICON_INFO);
+        } else {
+            var msg  = translate_or_default("Event could not be deleted", "events.delete_selected_error");
+            Popup.show_ok(GENERIC_ERROR, msg, ICON_ERROR);
+        }
+    }
+
+    var msg = translate_or_default("Are you sure you want to delete the selected event?", "events.delete_selected_are_you_sure");
+    Popup.show_yes_no(GENERIC_WARNING, msg, ICON_WARNING, onUserIsSure);
+})
+
+$(#eventsEmpty).subscribe("click", function() {
+    var onUserIsSure = function () {
+        var result = view.events_delete_all({});
+        if(result.success) {
+            var grid = $(.events-grid);
+            grid.clearItems();
+            grid.clearInfo();
+            grid.hide();
+        } else {
+            var msg  = translate_or_default("Events could not be deleted", "events.delete_all_error");
+            Popup.show_ok(GENERIC_ERROR, msg, ICON_ERROR);
+        }
+    };
+
+    var msg = translate_or_default("Are you sure you want to delete all events?", "events.delete_all_are_you_sure");
+    Popup.show_yes_no(GENERIC_WARNING, msg, ICON_WARNING, onUserIsSure);
+})
