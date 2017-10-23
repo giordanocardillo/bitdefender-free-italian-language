@@ -6,7 +6,7 @@ This is a simple localizalization package for Bitdefender free edition for Windo
 1. Download the zip package from the [releases](https://github.com/giordanocardillo/bitdefender-free-italian-language/releases/latest) page;
 2. Installing it will differ:
 
-    2.1 **If you are installing Bitdefender**: right before the installation ending, extract the zip content in the installation firectory;
+    2.1 **If you are installing Bitdefender**: right before the installation ending, extract the zip content in the installation directory;
     
     2.2 **If you have already Bitdefender installed**: you will have to reboot in safe mode to replace the translation files (check your Windows version documentation);
 
